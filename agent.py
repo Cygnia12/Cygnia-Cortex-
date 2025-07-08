@@ -36,3 +36,6 @@ def check_xss_with_regex(url):
 if __name__ == "__main__":
     target_url = input("Enter the target URL to scan: ")
     check_xss_with_regex(target_url)
+  
+
+Cygnia-cortex-apk=ABCD-1234-FAKE-KEY
